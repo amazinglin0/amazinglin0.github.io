@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>你是哪部世界名著里的神来之笔</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #a67c52;
+            --bg-color: #f4f1ea;
+        }
+        body {
+            font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; color: var(--accent-color); margin-bottom: 30px; }
+        .preface {
+            font-style: italic;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 20px;
+            margin-bottom: 40px;
+            color: #555;
+        }
+        .question-card { display: none; }
+        .question-card.active { display: block; }
+        .options { list-style: none; padding: 0; }
+        .option-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s;
+        }
+        .option-btn:hover { background: var(--bg-color); border-color: var(--accent-color); }
+        #result { display: none; text-align: center; }
+        .result-title { font-size: 1.5em; margin: 20px 0; font-weight: bold; }
+        .result-subtitle { color: var(--accent-color); font-size: 1.2em; margin-bottom: 20px; }
+        #chart-container { width: 100%; max-width: 400px; margin: 0 auto; }
+        .analysis { text-align: left; margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 5px; }
+        .progress-bar { height: 5px; background: #eee; margin-bottom: 20px; }
+        .progress-inner { height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>你是哪部世界名著里的神来之笔</h1>
+    
+    <div id="intro">
+        <div class="preface">
+            每个人的人生，都是一部尚未完结的世界名著。在命运跌宕起伏的章节中，你或许是那段惊心动魄的转折，或许是那抹温柔宁静的底色。本测验将带你穿梭于文字的丛林，探索你灵魂深处与哪部传世经典产生了奇妙的共振。通过深度挖掘你的潜意识抉择、审美偏向与核心价值观，揭示你作为“神来之笔”在文学殿堂中独特而璀璨的定位。
+        </div>
+        <button class="option-btn" style="text-align:center; background: var(--accent-color); color: #fff;" onclick="startQuiz()">开启探索之旅</button>
+    </div>
+
+    <div id="quiz" style="display:none;">
+        <div class="progress-bar"><div class="progress-inner" id="progress"></div></div>
+        <div id="question-container"></div>
+    </div>
+
+    <div id="result">
+        <div class="result-title" id="res-book"></div>
+        <div class="result-subtitle" id="res-tag"></div>
+        <div id="chart-container">
+            <canvas id="radarChart"></canvas>
+        </div>
+        <div class="analysis" id="res-analysis"></div>
+        <button class="option-btn" style="text-align:center; margin-top:20px;" onclick="location.reload()">重新测试</button>
+    </div>
+</div>
+
+<script>
+const questions = [
+    { q: "清晨醒来，你发现窗外是一片从未见过的迷雾，你的第一反应是：", a: ["感到不安，立刻关紧窗户", "感到兴奋，想走入雾中探索", "觉得那是某种神启或预兆", "只是自然现象，继续洗漱"] },
+    { q: "你在书店角落发现一本无名古籍，你最希望它记载的是：", a: ["改变命运的禁忌知识", "瑰丽宏大的异世界史诗", "细腻动人的往事回忆", "洞察人性的冷峻真理"] },
+    { q: "如果生命是一场漫长的航行，你认为最重要的支撑是：", a: ["永不熄灭的复仇心或野心", "绝对的自由与孤独", "对他人深沉的爱与责任", "纯粹的理智与逻辑"] },
+    { q: "在盛大的舞会中，你通常扮演什么角色？", a: ["观察者，在角落看穿一切伪装", "焦点，享受光芒与赞美", "搅局者，厌恶虚伪的礼节", "服务者，确保每个人都舒适"] },
+    { q: "当你面对一个无法调和的道德困境时，你会：", a: ["遵循内心的直觉，哪怕违背法律", "寻找规则的漏洞，达成最优解", "陷入长久的自我折磨与忏悔", "接受命运的安排，不做抵抗"] },
+    { q: "你认为“疯狂”的本质是什么？", a: ["对平庸生活的一种终极反抗", "认清现实真相后的必然结果", "一种具有高度创造性的天赋", "彻底失去自控能力的深渊"] },
+    { q: "如果可以拥有一件神迹，你选择：", a: ["能够预见未来的水晶球", "能够跨越生死的通灵术", "能够让所有人听命于你的权杖", "能够瞬间抵达任何地方的门"] },
+    { q: "你如何看待“苦难”？", a: ["它是灵魂的试金石，让人升华", "它是毫无意义的折磨，应尽力逃避", "它是获得最终救赎的必经之路", "它是观察世界运行规律的窗口"] },
+    { q: "在一座废弃的古堡里，你最想寻找的东西是：", a: ["尘封多年的家族秘密", "价值连城的黄金财宝", "墙壁上奇异的诅咒符号", "实验室里残留的科学记录"] },
+    { q: "你最向往的爱情状态是：", a: ["灵魂的激烈碰撞与玉石俱焚", "细水长流的陪伴与理解", "充满智力博弈的危险吸引", "带有神圣感的奉献与守护"] },
+    { q: "当你在森林中迷路时，你会相信：", a: ["自己的方位感", "地图和指南针", "鸟鸣或风向等自然暗示", "等待别人来营救"] },
+    { q: "你认为财富的意义在于：", a: ["获得支配他人的权力", "实现自我价值的工具", "获得安全感的保障", "体验更多生活可能性的入场券"] },
+    { q: "如果能穿越到过去，你最想做的是：", a: ["纠正一个令你后悔的决定", "亲眼见证一个伟大的历史时刻", "告诉过去的自己未来的秘密", "什么都不做，只是静静观察"] },
+    { q: "当你被误解时，你的第一反应是：", a: ["激烈地辩解，一定要争个是非", "保持沉默，认为懂的人自然懂", "感到悲哀，反思自己是否出错", "嘲笑对方的愚蠢和浅薄"] },
+    { q: "你最害怕的事情是：", a: ["被囚禁在无趣的琐事中", "失去最亲近的人", "发现自己的一生只是幻觉", "沦为彻底平庸的凡人"] },
+    { q: "如果生命只剩最后一天，你会：", a: ["完成最后一件宏大的作品", "与爱人共度最后的宁静时光", "疯狂放纵，不留任何遗憾", "独自面对死亡，思考虚无"] },
+    { q: "你认为艺术的核心应该是：", a: ["反映现实的残酷与真实", "创造极致的美与愉悦", "传达某种政治或道德主张", "挖掘潜意识中的幽暗面"] },
+    { q: "面对竞争对手，你的态度是：", a: ["彻底击垮，不留后患", "棋逢对手，享受博弈过程", "尽量避免冲突，寻求合作", "视而不见，只专注于自己"] },
+    { q: "如果这个世界是一场戏剧，你希望它是：", a: ["充满反转的荒诞剧", "宏伟悲壮的史诗剧", "温暖人心的生活剧", "冷静深刻的心理剧"] },
+    { q: "最后，你希望后世如何评价你？", a: ["一个改变了世界的伟人", "一个拥有自由灵魂的流浪者", "一个深不可测的天才", "一个善良且正直的普通人"] }
+];
+
+const books = {
+    "0000": { name: "《傲慢与偏见》", tag: "人性的洞察与理智的浪漫", analysis: "简·奥斯汀在琐碎日常中点石成金，其神来之笔在于用理智的锋芒刺破了阶级与偏见的迷雾，让尊严与爱情并行。你也是这种清醒的存在，在复杂的人际网中总能一眼识破伪装，保持优雅的克制。你与作品的奥妙在于，你不仅是生活的观察者，更是规则的重塑者，总能平衡感性与理性。小结：理智与情感的平衡大师。" },
+    "0001": { name: "《1984》", tag: "冷峻的警示与真相的坚守", analysis: "这部作品最惊心动魄处在于它对权力与自由的极致拆解，那只‘老大哥’的眼睛成为了文学史上永恒的战栗。你拥有一种近乎残酷的清醒，能从喧嚣中分辨真相的低语。你与这种底色的共鸣在于，你从不盲从，在思想的荒原中孤独地看守火种。小结：清醒且坚毅的真相守护者。" },
+    "0010": { name: "《红与黑》", tag: "野心的幻灭与阶级的突围", analysis: "于连在断头台前的自白是全书的神来之笔，它揭示了野心家在命运转轮下最高贵的沉沦与反叛。你内在充满了进取的渴望与对平庸的不甘，你的每一次抉择都带着向上的张力。这种奥妙在于你敢于直面欲望，并试图在命运的缝隙中撕开属于自己的光。小结：永不妥协的野心家与突围者。" },
+    "0011": { name: "《审判》", tag: "不可知的异化与制度的梦魇", analysis: "卡夫卡用极简的笔触勾勒出荒诞的枷锁，其神来之笔在于那种‘被捕却不知罪名’的无处遁逃感。你拥有敏锐的直觉，能感知到现实世界中那些隐形的边界与异化。你与作品的共振在于，你试图在荒诞的逻辑中寻找自我存在的逻辑。小结：荒诞现实中的清醒孤独者。" },
+    "0100": { name: "《了不起的盖茨比》", tag: "幻灭的梦想与虚无的繁华", analysis: "码头末端那抹绿色的微光，是菲茨杰拉德献给时代的神来之笔，代表着人类永恒却虚幻的希望。你身上有着一种明知不可为而为之的浪漫，对美好事物有着近乎虔诚的执念。这种关系精妙在于，你深知繁华如梦，却依然愿意为那一刻的灿烂付出一切。小结：追逐绿色微光的至情之人。" },
+    "0101": { name: "《追忆似水年华》", tag: "时间的流逝与感官的永恒", analysis: "一块浸在茶里的玛德莱娜小蛋糕，开启了普鲁斯特的时间之门，这便是感官重构记忆的神来之笔。你是一个极其细腻的感官捕手，总能从日常的微末中提取出永恒的情感。你与作品的联结在于，你生活在当下，更生活在对美好的重构中。小结：捕捉时间的感官艺术家。" },
+    "0110": { name: "《呼啸山庄》", tag: "原始的激情与纠缠的爱恨", analysis: "旷野的风与凯瑟琳的灵魂，艾米莉·勃朗特将爱恨推向了超越生死的疯狂维度。你体内潜藏着惊人的情感能量，一旦爆发便如荒原烈火，无可阻挡。这种奥妙在于你的纯粹与原始，你拒绝平庸的温存，只愿追求灵魂深处的共震。小结：灵魂深处蕴藏烈火的激情者。" },
+    "0111": { name: "《百年孤独》", tag: "宿命的循环与彻骨的荒凉", analysis: "布恩迪亚家族七代人的循环，在马孔多的风中消逝，其神来之笔在于将百年悲欢浓缩进一个永恒的孤独瞬间。你对生命有着深沉的宿命感，能穿透繁华看到底色里的荒凉。这种关系在于，你以一种慈悲而疏离的姿态，注视着命运的轮回。小结：俯瞰命运轮回的慈悲者。" },
+    "1000": { name: "《瓦尔登湖》", tag: "精神的极简与自然的归宿", analysis: "梭罗在湖畔的一整年，用极简的物质换取了极丰的精神自由，其神来之笔在于对现代文明的温柔反叛。你向往纯粹、真实且不被物欲裹挟的生活，是一个行动上的理想主义者。这种奥妙在于你总能在喧嚣中开辟出一片属于自己的宁静湖泊。小结：身体力行的极简修行者。" },
+    "1001": { name: "《尤利西斯》", tag: "日常的史诗与潜意识的流变", analysis: "乔伊斯用一天的时间包裹了整部人类史，其神来之笔在于那意识流中永不停息的灵魂独白。你拥有一个广阔且复杂的精神世界，思维总在跨越时空。你与作品的奥妙在于，你把平凡的生活过成了壮阔的奥德赛，在潜意识中航行。小结：精神世界的流浪冒险家。" },
+    "1010": { name: "《浮士德》", tag: "永不满足的探索与灵魂博弈", analysis: "浮士德与墨菲斯托的契约，是人类追求无限知识与体验的终极缩影。你身上有一种永不停歇的求知欲和探索精神，永远不满足于现状。这种共振在于你敢于与平庸打赌，在不断的自我博弈中实现灵魂的升华。小结：永无止境的自我超越者。" },
+    "1011": { name: "《哈姆雷特》", tag: "极致的思辨与悲剧性怀疑", analysis: "一句‘生存还是毁灭’，道尽了人类在行动与思辨之间的永恒踟蹰。你是一个深刻的思想者，总是试图剥开事物最核心的矛盾。你与这部剧的奥妙在于，你不仅在质疑世界，更在通过怀疑来确认自我的真实。小结：于思辨中探寻真理的哲人。" },
+    "1100": { name: "《罪与罚》", tag: "灵魂的拷问、痛苦与救赎", analysis: "拉斯柯尔尼科夫内心的激烈交锋，是陀思妥耶夫斯基对人性善恶边界最深刻的涂抹。你极具道德感和同理心，对自我的精神纯洁有着近乎苛刻的要求。这种关系在于，你总是在自省中成长，在承担责任的过程中获得真正的自由。小结：在深渊边缘寻找光明的自省者。" },
+    "1101": { name: "《大师与玛格丽特》", tag: "荒诞的讽刺与魔幻的正义", analysis: "撒旦访问莫斯科，揭穿虚伪的假面，其神来之笔在于用魔幻的暴力维护了纯真。你有着幽默感与不妥协的锐气，喜欢用荒诞的手法对抗枯燥的秩序。你与作品的精妙在于，你深知世界不完美，但依然愿意用童话般的勇气去抗争。小结：守护纯真的荒诞主义骑士。" },
+    "1110": { name: "《白鲸》", tag: "偏执的抗争与壮阔的自我毁灭", analysis: "亚哈船长那根象牙假腿踏在甲板上的声响，是对命运最强烈的挑战。你拥有着令人敬畏的意志力和专注度，一旦锚定目标便九死不悔。这种奥妙在于你这种近乎偏执的纯粹，赋予了生命一种悲剧性的崇高美感。小结：追逐终极理想的孤勇者。" },
+    "1111": { name: "《堂吉诃德》", tag: "伟大的疯癫与理想主义", analysis: "向风车冲锋的那个瘦削身影，是塞万提斯留给世界永恒的理想主义剪影。你是那个在功利时代依然相信童话和正义的人，你的“疯癫”是最高级的清醒。你与这部巨著的关系在于，你选择了一条布满荆棘但充满奇迹的梦幻之路。小结：永恒的梦幻骑士。" }
+};
+
+let currentStep = 0;
+let scores = { X: 0, Y: 0, Z: 0, W: 0 }; // X:理想 Y:情感 Z:混乱 W:出世
+
+function startQuiz() {
+    document.getElementById('intro').style.display = 'none';
+    document.getElementById('quiz').style.display = 'block';
+    showQuestion();
+}
+
+function showQuestion() {
+    const qContainer = document.getElementById('question-container');
+    const progress = document.getElementById('progress');
+    progress.style.width = ((currentStep / questions.length) * 100) + '%';
+    
+    if (currentStep < questions.length) {
+        const q = questions[currentStep];
+        let html = `<h3>${currentStep + 1}. ${q.q}</h3><div class="options">`;
+        q.a.forEach((opt, idx) => {
+            html += `<button class="option-btn" onclick="nextStep(${idx})">${opt}</button>`;
+        });
+        html += `</div>`;
+        qContainer.innerHTML = html;
+    } else {
+        showResult();
+    }
+}
+
+function nextStep(idx) {
+    // 简易映射逻辑
+    // A, D 通常趋向 0（现实、理智、秩序、入世）
+    // B, C 通常趋向 1（理想、情感、混乱、出世）
+    // 为了更精准，每5题循环侧重一个维度
+    const dim = ["X", "Y", "Z", "W"][currentStep % 4];
+    if (idx === 1 || idx === 2) scores[dim]++;
+    
+    currentStep++;
+    showQuestion();
+}
+
+function showResult() {
+    document.getElementById('quiz').style.display = 'none';
+    document.getElementById('result').style.display = 'block';
+
+    const binary = (scores.X >= 3 ? "1" : "0") + 
+                   (scores.Y >= 3 ? "1" : "0") + 
+                   (scores.Z >= 3 ? "1" : "0") + 
+                   (scores.W >= 3 ? "1" : "0");
+    
+    const res = books[binary] || books["0000"];
+    document.getElementById('res-book').innerText = `你是${res.name}部世界名著里的神来之笔`;
+    document.getElementById('res-tag').innerText = res.tag;
+    document.getElementById('res-analysis').innerText = res.analysis;
+
+    // 蜘蛛网图
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['理想程度', '情感驱动', '混乱倾向', '出世思想'],
+            datasets: [{
+                label: '灵魂成分 %',
+                data: [
+                    (scores.X / 5) * 100, 
+                    (scores.Y / 5) * 100, 
+                    (scores.Z / 5) * 100, 
+                    (scores.W / 5) * 100
+                ],
+                backgroundColor: 'rgba(166, 124, 82, 0.2)',
+                borderColor: 'rgba(166, 124, 82, 1)',
+                pointBackgroundColor: 'rgba(166, 124, 82, 1)'
+            }]
+        },
+        options: {
+            scales: { r: { suggestMin: 0, suggestMax: 100 } }
+        }
+    });
+}
+</script>
+</body>
+</html>
